@@ -89,6 +89,44 @@ def bi_rr_density(phi, w, sigma1, k1, sigma2, k2, amp):
                   (1 - w) * rr_density_phi(phi, sigma2, k2))
 
 
+# ---------------------------------------------------------------------
+# Secondary mm axis helper (shared by all plotting code)
+# ---------------------------------------------------------------------
+
+def add_mm_twin_axis(ax):
+    """
+    Add a secondary x-axis on top of a phi-based plot, labeled in mm.
+    Ticks are placed at round powers of ten in mm (10^k, k integer),
+    with phi positions computed via phi = -log2(mm) rather than
+    evenly-spaced phi ticks or raw decimal mm labels.
+
+    Must be called AFTER xlim/invert_xaxis() is finalized on ax, since
+    it reads ax.get_xlim() to decide which powers of ten are visible.
+    """
+    phi_lo, phi_hi = ax.get_xlim()
+    phi_min, phi_max = min(phi_lo, phi_hi), max(phi_lo, phi_hi)
+
+    # mm = 2^-phi, so phi range [phi_min, phi_max] maps to
+    # mm range [2^-phi_max, 2^-phi_min]
+    mm_min = 2.0 ** (-phi_max)
+    mm_max = 2.0 ** (-phi_min)
+    if mm_min <= 0 or mm_max <= 0:
+        return None
+
+    k_lo = int(np.floor(np.log10(mm_min)))
+    k_hi = int(np.ceil(np.log10(mm_max)))
+    k_values = [k for k in range(k_lo, k_hi + 1)]
+    mm_ticks = [10.0 ** k for k in k_values]
+    phi_ticks = [-np.log2(mm) for mm in mm_ticks]
+
+    ax_mm = ax.twiny()
+    ax_mm.set_xlim(ax.get_xlim())
+    ax_mm.set_xticks(phi_ticks)
+    ax_mm.set_xticklabels([f"$10^{{{k}}}$" for k in k_values], fontsize=8)
+    ax_mm.set_xlabel("mm", fontsize=9, labelpad=4)
+    return ax_mm
+
+
 
 # ---------------------------------------------------------------------
 # Entropy of information
