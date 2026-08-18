@@ -422,4 +422,3 @@ class FitWorker(QThread):
                 continue
             self.model_done.emit(model_key, result)
         self.all_finished.emit()
-
