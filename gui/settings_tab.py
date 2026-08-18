@@ -214,7 +214,7 @@ class SettingsTab(QWidget):
                 self.phi_combo.setCurrentIndex(i)
             if "weight" in lc or "wt" in lc or "mass" in lc:
                 self.weight_combo.setCurrentText(c)
-            if lc.strip() in ("size", "mm", "diameter", "d_mm"):
+            if any(tok in lc for tok in ("size", "diameter", "d_mm")) or lc.strip() == "mm":
                 self.size_combo.setCurrentText(c)
 
         self.size_combo.currentIndexChanged.connect(self._update_power_law_note)
