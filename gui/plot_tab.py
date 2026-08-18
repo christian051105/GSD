@@ -72,6 +72,7 @@ class PlotTab(QWidget):
         self._fit_log = []
         self._panel_specs = []        # rebuilt each draw; see _build_panel_specs
         self.ax_overlay = None        # the panel clicks are registered on
+        self.ax_overlay_twin = None   # its mm-twin-axis, if any (see _on_canvas_click)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 10, 10, 10)
@@ -194,6 +195,7 @@ class PlotTab(QWidget):
         axes = self.figure.subplots(n_panels, 1, squeeze=False)[:, 0]
 
         self.ax_overlay = None
+        self.ax_overlay_twin = None
         phi = self.arrays["phi"]
         weight_pct = self.arrays["weight_pct"]
 
@@ -221,7 +223,7 @@ class PlotTab(QWidget):
                                  f"(click here to set starting guess)",
                                  fontsize=10, fontweight='bold', pad=32)
                     self.ax_overlay = ax
-                    add_mm_twin_axis(ax)
+                    self.ax_overlay_twin = add_mm_twin_axis(ax)
                     ax.legend(fontsize=7, loc='upper left', bbox_to_anchor=(1.01, 1.0),
                               borderaxespad=0.0)
                 else:
@@ -239,9 +241,10 @@ class PlotTab(QWidget):
                 ax.set_xlim(phi.min() - 4, phi.max() + 4)
                 ax.invert_xaxis()
                 ax.grid(alpha=0.3, which='both')
-                add_mm_twin_axis(ax)
+                twin = add_mm_twin_axis(ax)
                 if spec.get("is_click_target", False):
                     self.ax_overlay = ax
+                    self.ax_overlay_twin = twin
             elif kind == "rr_cumulative_diam":
                 ax.set_xlabel('Particle diameter, $l$ (mm, log scale)')
                 ax.set_ylabel(r'$M(>l)/M_T$')
@@ -278,7 +281,13 @@ class PlotTab(QWidget):
 
     # ---------------------------------------------------------------
     def _on_canvas_click(self, event):
-        if self.ax_overlay is None or event.inaxes != self.ax_overlay or event.xdata is None:
+        if self.ax_overlay is None or event.xdata is None:
+            return
+        # the mm-twin-axis (twiny()) sits at the exact same bbox as the
+        # click-target axis, so matplotlib's pixel hit-testing can
+        # resolve event.inaxes to the twin instead of the original --
+        # accept either, since they share the same phi x-coordinates
+        if event.inaxes not in (self.ax_overlay, self.ax_overlay_twin):
             return
         self.clicks.append((event.xdata, event.ydata))
         self.ax_overlay.plot(event.xdata, event.ydata, 'x', color='black',
@@ -336,14 +345,16 @@ class PlotTab(QWidget):
         density_keys_done = [k for k in self._density_models() if k in self._results_by_model]
 
         self.ax_overlay = None
+        self.ax_overlay_twin = None
         for ax, spec in zip(axes, self._panel_specs):
             kind = spec["kind"]
 
             if kind == "overlay":
-                self._render_density_panel(ax, phi, weight_pct, density_keys_done,
-                                            title=f"{self.dataset_label} -- ALL SELECTED "
-                                                  f"MODELS (click here to set starting guess)",
-                                            is_overlay=True)
+                self.ax_overlay_twin = self._render_density_panel(
+                    ax, phi, weight_pct, density_keys_done,
+                    title=f"{self.dataset_label} -- ALL SELECTED "
+                          f"MODELS (click here to set starting guess)",
+                    is_overlay=True)
                 self.ax_overlay = ax
                 for cx, cy in self.clicks:
                     ax.plot(cx, cy, 'x', color='black', markersize=10,
@@ -357,12 +368,13 @@ class PlotTab(QWidget):
 
             elif kind == "power_law":
                 is_click_target = spec.get("is_click_target", False)
-                self._render_power_law_panel(
+                twin = self._render_power_law_panel(
                     ax, self._results_by_model.get("bi_power_law"),
                     is_click_target=is_click_target,
                 )
                 if is_click_target:
                     self.ax_overlay = ax
+                    self.ax_overlay_twin = twin
                     for cx, cy in self.clicks:
                         ax.plot(cx, cy, 'x', color='black', markersize=10,
                                 markeredgewidth=2, zorder=5)
@@ -400,7 +412,7 @@ class PlotTab(QWidget):
                 ax.plot(phi_smooth, result["y_pop2"], color=pop_c2, lw=1.0,
                         ls='--', alpha=0.7, label=result.get("pop2_label", "Pop. 2"))
 
-        add_mm_twin_axis(ax)
+        twin = add_mm_twin_axis(ax)
         if is_overlay:
             # overlay panel tends to have many legend entries -- put it
             # outside the axes on the right so it never overlaps the peaks
@@ -408,6 +420,7 @@ class PlotTab(QWidget):
                       borderaxespad=0.0)
         else:
             ax.legend(fontsize=7, loc='upper left', framealpha=0.85)
+        return twin
 
     def _render_power_law_panel(self, ax, result, is_click_target=False):
         ax.set_xlabel('\u03a6')
@@ -429,7 +442,7 @@ class PlotTab(QWidget):
                         label=result.get("total_label", "Bi-power-law fit"))
             ax.legend(fontsize=7, loc='lower left', framealpha=0.85)
         ax.invert_xaxis()
-        add_mm_twin_axis(ax)
+        return add_mm_twin_axis(ax)
 
     def _render_rr_cumulative(self, ax, result, mode):
         if mode == "diam":
