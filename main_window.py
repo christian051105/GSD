@@ -44,6 +44,6 @@ class MainWindow(QMainWindow):
         self.settings_tab.load_file(path)
         self.tabs.setCurrentWidget(self.settings_tab)
 
-    def _on_settings_confirmed(self, dataset_label, arrays, model_key, output_path):
-        self.plot_tab.load_settings(dataset_label, arrays, model_key, output_path)
+    def _on_settings_confirmed(self, dataset_label, arrays, model_keys, output_path):
+        self.plot_tab.load_settings(dataset_label, arrays, model_keys, output_path)
         self.tabs.setCurrentWidget(self.plot_tab)

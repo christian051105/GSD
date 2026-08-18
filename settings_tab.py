@@ -13,7 +13,8 @@ import os
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QFormLayout, QGroupBox,
     QLabel, QListWidget, QComboBox, QSpinBox, QPushButton,
-    QLineEdit, QFileDialog, QMessageBox, QDoubleSpinBox
+    QLineEdit, QFileDialog, QMessageBox, QDoubleSpinBox,
+    QCheckBox, QAbstractItemView
 )
 from PyQt6.QtCore import pyqtSignal
 
@@ -34,8 +35,8 @@ NONE_OPTION = "(none)"
 
 
 class SettingsTab(QWidget):
-    # emits (dataset_label:str, arrays:dict, model_key:str, output_path:str)
-    settings_confirmed = pyqtSignal(str, dict, str, str)
+    # emits (dataset_label:str, arrays:dict, model_keys:list[str], output_path:str)
+    settings_confirmed = pyqtSignal(str, dict, list, str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -108,13 +109,30 @@ class SettingsTab(QWidget):
         layout.addWidget(bin_box)
 
         # --- model + output ------------------------------------------------
-        model_box = QGroupBox("4. Model to fit and results file")
-        model_form = QFormLayout(model_box)
-        self.model_combo = QComboBox()
-        for label, _key in MODEL_CHOICES:
-            self.model_combo.addItem(label)
-        model_form.addRow("Model:", self.model_combo)
+        model_box = QGroupBox("4. Model(s) to fit and results file")
+        model_box_layout = QVBoxLayout(model_box)
+        model_box_layout.addWidget(QLabel(
+            "Select one or more models. All selected models are fit from "
+            "the same two peak clicks on the next tab."
+        ))
+        self.model_checkboxes = {}
+        for label, key in MODEL_CHOICES:
+            cb = QCheckBox(label)
+            if key == "bi_gaussian":
+                cb.setChecked(True)
+            self.model_checkboxes[key] = cb
+            model_box_layout.addWidget(cb)
 
+        self.power_law_note = QLabel(
+            "Bi-power-law needs a physical size column (mm/\u00b5m) -- "
+            "select one above, or deselect Bi-power-law."
+        )
+        self.power_law_note.setStyleSheet("color: #a06000;")
+        self.power_law_note.setWordWrap(True)
+        self.power_law_note.setVisible(False)
+        model_box_layout.addWidget(self.power_law_note)
+
+        model_form = QFormLayout()
         output_row = QHBoxLayout()
         self.output_path_edit = QLineEdit(RESULTS_PATH)
         output_row.addWidget(self.output_path_edit)
@@ -124,6 +142,7 @@ class SettingsTab(QWidget):
         output_container = QWidget()
         output_container.setLayout(output_row)
         model_form.addRow("Save results to:", output_container)
+        model_box_layout.addLayout(model_form)
         layout.addWidget(model_box)
 
         # --- confirm -----------------------------------------------------
@@ -139,8 +158,10 @@ class SettingsTab(QWidget):
     def _set_columns_enabled(self, enabled):
         for w in (self.phi_combo, self.size_combo, self.weight_combo,
                    self.size_unit_combo, self.bin_width_spin,
-                   self.model_combo, self.confirm_button):
+                   self.confirm_button):
             w.setEnabled(enabled)
+        for cb in self.model_checkboxes.values():
+            cb.setEnabled(enabled)
 
     def load_file(self, path):
         """Called by main_window when a file is selected on the Home tab."""
@@ -196,8 +217,17 @@ class SettingsTab(QWidget):
             if lc.strip() in ("size", "mm", "diameter", "d_mm"):
                 self.size_combo.setCurrentText(c)
 
+        self.size_combo.currentIndexChanged.connect(self._update_power_law_note)
+        self.model_checkboxes["bi_power_law"].toggled.connect(self._update_power_law_note)
+
         self._set_columns_enabled(True)
         self._try_suggest_bin_width()
+        self._update_power_law_note()
+
+    def _update_power_law_note(self):
+        needs_size = self.model_checkboxes["bi_power_law"].isChecked()
+        has_size = self.size_combo.currentText() not in ("", NONE_OPTION)
+        self.power_law_note.setVisible(needs_size and not has_size)
 
     def _try_suggest_bin_width(self):
         """Best-effort bin-width suggestion straight from the raw phi
@@ -219,9 +249,8 @@ class SettingsTab(QWidget):
         if path:
             self.output_path_edit.setText(path)
 
-    def _selected_model_key(self):
-        idx = self.model_combo.currentIndex()
-        return MODEL_CHOICES[idx][1]
+    def _selected_model_keys(self):
+        return [key for key in self.model_checkboxes if self.model_checkboxes[key].isChecked()]
 
     def _on_confirm(self):
         if self.raw_df is None:
@@ -234,12 +263,16 @@ class SettingsTab(QWidget):
         size_col = None if size_col == NONE_OPTION else size_col
         weight_col = None if weight_col == NONE_OPTION else weight_col
 
-        model_key = self._selected_model_key()
-        if model_key == "bi_power_law" and size_col is None:
+        model_keys = self._selected_model_keys()
+        if not model_keys:
+            QMessageBox.warning(self, "No model selected",
+                                 "Select at least one model to fit.")
+            return
+        if "bi_power_law" in model_keys and size_col is None:
             QMessageBox.warning(
                 self, "Size column required",
                 "Bi-power-law needs a physical size column (mm or \u00b5m). "
-                "Select one, or choose a different model."
+                "Select one, or deselect Bi-power-law."
             )
             return
         if weight_col is None:
@@ -266,7 +299,7 @@ class SettingsTab(QWidget):
         dataset_label = os.path.basename(self.csv_path).rsplit(".", 1)[0]
         output_path = self.output_path_edit.text().strip() or RESULTS_PATH
 
-        self.settings_confirmed.emit(dataset_label, arrays, model_key, output_path)
+        self.settings_confirmed.emit(dataset_label, arrays, model_keys, output_path)
 
     # called after load_columns, once we know phi values, to suggest a bin width
     def suggest_bin_width_from_phi(self, phi):
