@@ -256,8 +256,7 @@ class PlotTab(QWidget):
                            "is_click_target": self._phase == "power_law"})
 
         if self._has_rr():
-            specs.append({"kind": "rr_cumulative_diam"})
-            specs.append({"kind": "rr_cumulative_phi"})
+            specs.append({"kind": "rr_cumulative"})
 
         return specs
 
@@ -275,10 +274,8 @@ class PlotTab(QWidget):
             return MODEL_LABELS.get(spec["model_key"], spec["model_key"])
         if kind == "power_law":
             return "Bi-power-law"
-        if kind == "rr_cumulative_diam":
-            return "Bi-Rosin-Rammler cumulative (vs diameter)"
-        if kind == "rr_cumulative_phi":
-            return "Bi-Rosin-Rammler cumulative (vs phi)"
+        if kind == "rr_cumulative":
+            return "Bi-Rosin-Rammler cumulative (mm + \u03a6)"
         return kind
 
     # ---------------------------------------------------------------
@@ -358,11 +355,8 @@ class PlotTab(QWidget):
                 ax.plot(cx, cy, 'x', color='black', markersize=10,
                         markeredgewidth=2, zorder=5)
 
-        elif kind == "rr_cumulative_diam":
-            self._render_rr_cumulative(ax, self._results_by_model.get("bi_rr"), mode="diam")
-
-        elif kind == "rr_cumulative_phi":
-            self._render_rr_cumulative(ax, self._results_by_model.get("bi_rr"), mode="phi")
+        elif kind == "rr_cumulative":
+            self._render_rr_cumulative(ax, self._results_by_model.get("bi_rr"))
 
         # Reserve space for the overlay page's outside-anchored legend
         # based on its ACTUAL rendered size, not a static guess -- a
@@ -572,6 +566,21 @@ class PlotTab(QWidget):
             ax.semilogy(result["phi_smooth"], result["y_total"],
                         '-', color='crimson', lw=2,
                         label=result.get("total_label", "Bi-power-law fit"))
+
+            # Mark the two fitted crossover positions (lambda_f, lambda_c
+            # -- the fine and coarse crossover phi values in the
+            # two-branch power law) as vertical reference lines, so
+            # it's clear where each branch takes over.
+            params = result.get("params", {})
+            lambda_f = params.get("lambda_f")
+            lambda_c = params.get("lambda_c")
+            if lambda_f is not None:
+                ax.axvline(lambda_f, color='#2980b9', lw=1.3, ls='--',
+                           zorder=3, label=f'\u03bb$_f$ (fine crossover) = {lambda_f:.2f} \u03a6')
+            if lambda_c is not None:
+                ax.axvline(lambda_c, color='#27ae60', lw=1.3, ls='--',
+                           zorder=3, label=f'\u03bb$_c$ (coarse crossover) = {lambda_c:.2f} \u03a6')
+
             ax.legend(fontsize=7, loc='lower left', framealpha=0.85)
         else:
             # Plot the raw cumulative-number data even before any fit
@@ -601,44 +610,81 @@ class PlotTab(QWidget):
         ax.invert_xaxis()
         return add_mm_twin_axis(ax)
 
-    def _render_rr_cumulative(self, ax, result, mode):
-        if mode == "diam":
-            ax.set_xlabel('Particle diameter, $l$ (mm, log scale)')
-            ax.set_ylabel(r'$M(>l)/M_T$')
-            ax.set_title('Bi-Rosin-Rammler: cumulative view (vs diameter)',
-                          fontsize=10, fontweight='bold', pad=12)
-        else:
-            ax.set_xlabel('\u03a6')
-            ax.set_ylabel(r'$M(>l)/M_T$')
-            ax.set_title('Bi-Rosin-Rammler: cumulative view (vs phi)',
-                          fontsize=10, fontweight='bold', pad=32)
+    def _render_rr_cumulative(self, ax, result):
+        """Single combined cumulative-view panel: plotted against
+        diameter (mm, log-x, on the primary axis -- matching the
+        convention used elsewhere for the physically-meaningful size
+        scale) with a secondary phi axis on top, exactly like the
+        other phi<->mm twin axes used throughout the app."""
+        ax.set_xlabel('Particle diameter, $l$ (mm, log scale)')
+        ax.set_ylabel(r'$M(>l)/M_T$')
+        ax.set_title('Bi-Rosin-Rammler: cumulative view (mm + \u03a6)',
+                      fontsize=10, fontweight='bold', pad=32)
         ax.grid(alpha=0.3, which='both')
 
         if result is not None and "rr_cumulative" in result:
             cum = result["rr_cumulative"]
-            if mode == "diam":
-                ax.semilogx(cum["diam_mm_data"], cum["M_gt_l_data"], 'o', color='k',
-                            markersize=5, label='Data (empirical)', zorder=5)
-                ax.semilogx(cum["diam_mm_fit"], cum["M_gt_l_fit"], '-', color='crimson',
-                            lw=2, label='Bi-Rosin-Rammler (fitted density)')
-                ax.invert_xaxis()
-            else:
-                ax.plot(cum["phi_data_sorted"], cum["M_gt_l_data"], 'o', color='k',
+            ax.semilogx(cum["diam_mm_data"], cum["M_gt_l_data"], 'o', color='k',
                         markersize=5, label='Data (empirical)', zorder=5)
-                ax.plot(cum["phi_fit_sorted"], cum["M_gt_l_fit"], '-', color='crimson',
+            ax.semilogx(cum["diam_mm_fit"], cum["M_gt_l_fit"], '-', color='crimson',
                         lw=2, label='Bi-Rosin-Rammler (fitted density)')
-                add_mm_twin_axis(ax)
+            ax.invert_xaxis()
             ax.legend(fontsize=7, loc='upper right', framealpha=0.85)
         else:
-            if mode == "diam":
-                ax.text(0.5, 0.5, "No Bi-Rosin-Rammler fit yet",
-                        ha='center', va='center', transform=ax.transAxes,
-                        fontsize=9, color='grey')
-            else:
-                ax.text(0.5, 0.5, "No Bi-Rosin-Rammler fit yet",
-                        ha='center', va='center', transform=ax.transAxes,
-                        fontsize=9, color='grey')
-                add_mm_twin_axis(ax)
+            ax.text(0.5, 0.5, "No Bi-Rosin-Rammler fit yet",
+                    ha='center', va='center', transform=ax.transAxes,
+                    fontsize=9, color='grey')
+            # give the axis sane default limits so the (as-yet-absent)
+            # twin phi axis has something sensible to compute from
+            phi = self.arrays["phi"]
+            ax.set_xlim(2.0 ** (-(phi.max() + 1)), 2.0 ** (-(phi.min() - 1)))
+            ax.set_xscale('log')
+            ax.invert_xaxis()
+
+        # add_mm_twin_axis assumes a phi-scaled linear x-axis and
+        # computes tick positions via phi = -log2(mm) -- here the
+        # PRIMARY axis is already mm (log scale), so we add the phi
+        # twin manually instead of reusing add_mm_twin_axis as-is.
+        return self._add_phi_twin_axis_on_mm(ax)
+
+    @staticmethod
+    def _add_phi_twin_axis_on_mm(ax):
+        """Secondary top x-axis in phi, for a panel whose primary
+        x-axis is diameter in mm (log scale). Mirrors
+        models.add_mm_twin_axis's approach (round, human-readable tick
+        positions rather than a raw linear mapping) but in the
+        opposite direction: phi ticks at whole-phi integers, positioned
+        via mm = 2**-phi onto the log-mm primary axis.
+        """
+        mm_lo, mm_hi = ax.get_xlim()
+        mm_min, mm_max = min(mm_lo, mm_hi), max(mm_lo, mm_hi)
+        if mm_min <= 0 or mm_max <= 0:
+            return None
+
+        phi_min = -np.log2(mm_max)
+        phi_max = -np.log2(mm_min)
+        # round off floating-point noise (e.g. phi_min landing at
+        # -3.0000000000000004 instead of exactly -3.0) before
+        # flooring/ceiling, otherwise a spurious extra tick just
+        # outside the real data range gets added -- which then makes
+        # matplotlib auto-expand this twin axis's xlim to include it,
+        # desyncing it from the primary axis's actual range.
+        phi_lo_tick = int(np.floor(round(phi_min, 6)))
+        phi_hi_tick = int(np.ceil(round(phi_max, 6)))
+        phi_ticks = list(range(phi_lo_tick, phi_hi_tick + 1))
+        mm_ticks = [2.0 ** (-p) for p in phi_ticks]
+
+        ax_phi = ax.twiny()
+        ax_phi.set_xscale('log')
+        ax_phi.set_xticks(mm_ticks)
+        ax_phi.set_xticklabels([f"{p:+d}" for p in phi_ticks], fontsize=8)
+        ax_phi.set_xlabel('\u03a6', fontsize=9, labelpad=4)
+        # set xlim AFTER ticks -- set_xticks can otherwise let
+        # matplotlib auto-expand the range to fit an edge tick,
+        # desyncing this twin axis from the primary axis it's meant
+        # to mirror exactly.
+        ax_phi.set_xlim(ax.get_xlim())
+        return ax_phi
 
     # ---------------------------------------------------------------
     def _on_save(self):
