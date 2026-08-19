@@ -363,7 +363,35 @@ class PlotTab(QWidget):
         elif kind == "rr_cumulative_phi":
             self._render_rr_cumulative(ax, self._results_by_model.get("bi_rr"), mode="phi")
 
-        self.figure.subplots_adjust(top=0.88, bottom=0.12, left=0.13, right=0.78)
+        # Reserve space for the overlay page's outside-anchored legend
+        # based on its ACTUAL rendered size, not a static guess -- a
+        # fixed right=0.78 margin was sized for a short legend and
+        # silently overflowed back onto the plot once more density
+        # models (more legend entries) were selected. Every other page
+        # kind uses an inside-axes legend (or none), which needs no
+        # extra margin at all.
+        legend = ax.get_legend()
+        is_outside_legend = (
+            kind == "overlay" and legend is not None
+            and legend._bbox_to_anchor is not None
+        )
+
+        if is_outside_legend:
+            self.figure.subplots_adjust(top=0.88, bottom=0.12, left=0.13, right=0.98)
+            self.canvas.draw()  # one throwaway draw so matplotlib computes real extents
+
+            renderer = self.canvas.get_renderer()
+            legend_bbox_px = legend.get_window_extent(renderer)
+            fig_w_px = self.figure.get_size_inches()[0] * self.figure.get_dpi()
+            # convert the legend's rendered pixel width to a figure-fraction
+            # margin, with a little breathing room, then clamp so a huge
+            # legend can never crush the axes down to nothing
+            legend_w_frac = legend_bbox_px.width / fig_w_px
+            right_margin = max(0.45, 1.0 - legend_w_frac - 0.04)
+            self.figure.subplots_adjust(right=right_margin)
+        else:
+            self.figure.subplots_adjust(top=0.88, bottom=0.12, left=0.13, right=0.95)
+
         self.canvas.draw()
 
         n = len(self._panel_specs)
