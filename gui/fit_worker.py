@@ -231,6 +231,48 @@ def _fit_bi_rr(arrays, clicks):
     y_pop1 = amp_fit * w_fit * rr_density_phi(phi_smooth, sigma1_fit, k1_fit)
     y_pop2 = amp_fit * (1 - w_fit) * rr_density_phi(phi_smooth, sigma2_fit, k2_fit)
 
+    # -------------------------------------------------------------
+    # Cumulative "coarser than" survival curve, M(>l)/M_T, for the
+    # cumulative-view pages. Larger diameter l == smaller phi, so
+    # "coarser than diameter l" == "phi less than the phi equivalent
+    # of l" -- i.e. M(>l)/M_T at a given phi is the cumulative mass
+    # fraction with phi BELOW that value, integrated up from the
+    # coarse (low-phi) end.
+    # -------------------------------------------------------------
+    # Empirical curve, from the raw binned data.
+    order = np.argsort(phi_data)
+    phi_data_sorted = phi_data[order]
+    mass_frac_sorted = (wt_pct_norm[order] / wt_pct_norm.sum())
+    M_gt_l_data = 1.0 - np.cumsum(mass_frac_sorted)
+    # shift so the curve reads "mass coarser than the LEFT edge of
+    # each bin", matching the usual grain-size cumulative convention
+    M_gt_l_data = np.concatenate(([1.0], M_gt_l_data[:-1]))
+    diam_mm_data = 2.0 ** (-phi_data_sorted)
+
+    # Fitted curve, from the smooth fitted density via cumulative
+    # trapezoidal integration (normalized so total mass = 1).
+    y_total_frac = y_total * phi_bin_width
+    _trapz = getattr(np, "trapezoid", None) or np.trapz
+    total_mass = _trapz(y_total_frac, phi_smooth)
+    if total_mass > 0:
+        cum_from_coarse = np.concatenate(
+            ([0.0], np.cumsum((y_total_frac[1:] + y_total_frac[:-1]) / 2.0
+                              * np.diff(phi_smooth)))
+        ) / total_mass
+        M_gt_l_fit = 1.0 - cum_from_coarse
+    else:
+        M_gt_l_fit = np.ones_like(phi_smooth)
+    diam_mm_fit = 2.0 ** (-phi_smooth)
+
+    rr_cumulative = {
+        "phi_data_sorted": phi_data_sorted,
+        "diam_mm_data": diam_mm_data,
+        "M_gt_l_data": M_gt_l_data,
+        "phi_fit_sorted": phi_smooth,
+        "diam_mm_fit": diam_mm_fit,
+        "M_gt_l_fit": M_gt_l_fit,
+    }
+
     summary = (
         f"BI-ROSIN-RAMMLER FIT\n"
         f"  w (coarse mass fraction) = {w_fit:.4f} +/- {w_err:.4f}\n"
@@ -255,6 +297,7 @@ def _fit_bi_rr(arrays, clicks):
         "pop1_label": "Coarse mode",
         "pop2_label": "Fine mode",
         "summary_text": summary,
+        "rr_cumulative": rr_cumulative,
     }
 
 
