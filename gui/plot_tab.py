@@ -305,6 +305,7 @@ class PlotTab(QWidget):
             ax = self.figure.add_subplot(111)
             ax.text(0.5, 0.5, "No models selected.", ha='center', va='center')
             self.canvas.draw()
+            self.canvas.repaint()
             self.page_label.setText("")
             self.prev_button.setEnabled(False)
             self.next_button.setEnabled(False)
@@ -393,6 +394,17 @@ class PlotTab(QWidget):
             self.figure.subplots_adjust(top=0.88, bottom=0.12, left=0.13, right=0.95)
 
         self.canvas.draw()
+        # canvas.draw() only schedules a repaint via Qt's event queue
+        # (self.update()) rather than forcing one immediately. If the
+        # new page's content is sparser than the previous page's (e.g.
+        # navigating from the busy overlay page to a single-model
+        # page), the region the new draw doesn't touch can keep
+        # showing the PREVIOUS page's stale pixels until some other
+        # event forces a full repaint -- which reads as the old
+        # clicking plot "showing through behind" the new one. Force an
+        # immediate, synchronous repaint of the whole widget every
+        # time we redraw a page, so this can never linger.
+        self.canvas.repaint()
 
         n = len(self._panel_specs)
         self.page_label.setText(f"Page {self._page_index + 1} / {n}  --  {self._page_title_for(spec)}")
