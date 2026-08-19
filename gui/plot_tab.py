@@ -46,6 +46,7 @@ from PyQt6.QtWidgets import (
 
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
+from PyQt6.QtWidgets import QSizePolicy
 
 from models import entropy_of_info, add_mm_twin_axis
 from results_store import save_fit_result
@@ -100,6 +101,12 @@ class PlotTab(QWidget):
 
         self.figure = Figure(figsize=(7, PANEL_HEIGHT_IN))
         self.canvas = FigureCanvasQTAgg(self.figure)
+        # Force the canvas to keep its natural (large, multi-panel) size
+        # rather than letting Qt shrink it to fit the scroll area's
+        # viewport. Without this, QScrollArea's setWidgetResizable(True)
+        # treats the canvas as free to resize down, so it gets squashed
+        # into the visible window instead of triggering a scrollbar.
+        self.canvas.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
         # Scroll area so a tall multi-panel figure doesn't get squashed
         # into the fixed window height -- the canvas keeps its natural
@@ -280,8 +287,33 @@ class PlotTab(QWidget):
                     title += ' -- click here to set starting guess'
                 ax.set_title(title, fontsize=10, fontweight='bold', pad=32)
                 ax.set_xlim(phi.min() - 4, phi.max() + 4)
-                ax.invert_xaxis()
                 ax.grid(alpha=0.3, which='both')
+
+                # Plot the raw cumulative-number data immediately, even
+                # before any fit exists -- otherwise this panel is blank
+                # axes with nothing to click against as a visual guide.
+                weight_pct = self.arrays["weight_pct"]
+                size_mm = self.arrays.get("size_mm")
+                if size_mm is not None:
+                    with np.errstate(over="ignore", divide="ignore", invalid="ignore"):
+                        num_raw = weight_pct / (size_mm ** 3)
+                    num_raw = np.nan_to_num(num_raw, nan=0.0, posinf=0.0, neginf=0.0)
+                    order = np.argsort(phi)
+                    phi_sorted = phi[order]
+                    num_sorted = num_raw[order]
+                    total = num_sorted.sum()
+                    if total > 0:
+                        N_cum = np.cumsum(num_sorted) / total
+                        mask = N_cum > 0
+                        ax.semilogy(phi_sorted[mask], N_cum[mask], 'ok',
+                                    markersize=5, label='Data', zorder=4)
+                        ax.legend(fontsize=7, loc='lower left', framealpha=0.85)
+                else:
+                    ax.text(0.5, 0.5, "No size column mapped -- cannot preview data",
+                            ha='center', va='center', transform=ax.transAxes,
+                            fontsize=9, color='grey')
+
+                ax.invert_xaxis()
                 twin = add_mm_twin_axis(ax)
                 if is_target:
                     self.ax_click_target = ax
@@ -332,13 +364,23 @@ class PlotTab(QWidget):
         # the mm-twin-axis (twiny()) sits at the exact same bbox as the
         # click-target axis, so matplotlib's pixel hit-testing can
         # resolve event.inaxes to the twin instead of the original --
-        # accept either, since they share the same phi x-coordinates
+        # accept either, since they share the same phi x-coordinates.
+        # HOWEVER: a twiny() only shares the x-axis with its parent --
+        # its y-axis is independent and defaults to (0, 1) since nothing
+        # is ever plotted on it. If event.inaxes is the twin, event.xdata
+        # /event.ydata come back in THAT bogus coordinate system, not the
+        # real panel's data range -- so we always remap the raw pixel
+        # position through the real click-target axes' transform instead
+        # of trusting event.xdata/event.ydata directly.
         if event.inaxes not in (self.ax_click_target, self.ax_click_target_twin):
             return
 
+        inv = self.ax_click_target.transData.inverted()
+        x_data, y_data = inv.transform((event.x, event.y))
+
         clicks = self._current_clicks()
-        clicks.append((event.xdata, event.ydata))
-        self.ax_click_target.plot(event.xdata, event.ydata, 'x', color='black',
+        clicks.append((x_data, y_data))
+        self.ax_click_target.plot(x_data, y_data, 'x', color='black',
                                    markersize=10, markeredgewidth=2, zorder=5)
         self.canvas.draw()
 
