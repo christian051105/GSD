@@ -128,8 +128,17 @@ class PlotTab(QWidget):
         # -- single reusable figure/canvas for whichever page is shown --
         self.figure = Figure(figsize=FIGURE_SIZE_IN)
         self.canvas = FigureCanvasQTAgg(self.figure)
+        # Let the canvas shrink/grow freely with the window -- do NOT
+        # pin a minimum height. FigureCanvasQTAgg renders at whatever
+        # pixel size Qt actually gives the widget; it does not rescale
+        # already-rendered content to fit, so a fixed figsize/minimum
+        # height bigger than the available space just gets clipped with
+        # no scrollbar to reach the rest. Instead we resize the FIGURE
+        # itself to match the canvas's real size on every resize event
+        # (see resizeEvent override below), so the plot always exactly
+        # fills whatever area Qt has given it.
         self.canvas.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        self.canvas.setMinimumHeight(420)
+        self.canvas.setMinimumSize(200, 200)
         layout.addWidget(self.canvas, stretch=1)
 
         button_row = QHBoxLayout()
@@ -148,6 +157,23 @@ class PlotTab(QWidget):
         self.results_text.setReadOnly(True)
         self.results_text.setMaximumHeight(220)
         layout.addWidget(self.results_text)
+
+    # ---------------------------------------------------------------
+    def resizeEvent(self, event):
+        """Keep the matplotlib Figure's inch size in sync with the
+        canvas widget's actual pixel size, so the rendered plot always
+        fills the visible area instead of being clipped when the
+        widget is smaller than a hardcoded figsize."""
+        super().resizeEvent(event)
+        self._sync_figure_size_to_canvas()
+        if self._panel_specs:
+            self.canvas.draw_idle()
+
+    def _sync_figure_size_to_canvas(self):
+        w_px = max(self.canvas.width(), 1)
+        h_px = max(self.canvas.height(), 1)
+        dpi = self.figure.get_dpi()
+        self.figure.set_size_inches(w_px / dpi, h_px / dpi, forward=False)
 
     # ---------------------------------------------------------------
     def load_settings(self, dataset_label, arrays, model_keys, output_path):
@@ -275,6 +301,7 @@ class PlotTab(QWidget):
         vice versa."""
         if not self._panel_specs:
             self.figure.clear()
+            self._sync_figure_size_to_canvas()
             ax = self.figure.add_subplot(111)
             ax.text(0.5, 0.5, "No models selected.", ha='center', va='center')
             self.canvas.draw()
@@ -287,7 +314,7 @@ class PlotTab(QWidget):
         spec = self._panel_specs[self._page_index]
 
         self.figure.clear()
-        self.figure.set_size_inches(*FIGURE_SIZE_IN, forward=True)
+        self._sync_figure_size_to_canvas()
         ax = self.figure.add_subplot(111)
 
         self.ax_click_target = None
