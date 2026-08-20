@@ -2,15 +2,31 @@
 gui/home_tab.py
 ================
 Landing tab: brief instructions + a button that opens a native file
-dialog to pick the TGSD CSV. Emits file_selected(path) when a file is
-chosen; main_window.py listens for this and opens the Settings tab.
+dialog to pick the TGSD CSV, plus a footer strip of funder/partner
+logos (Lancaster University, UKRI NERC, ExaGeo). Emits
+file_selected(path) when a file is chosen; main_window.py listens for
+this and opens the Settings tab.
 """
 
+import os
+
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QLabel, QPushButton, QFileDialog, QFrame
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
+    QFileDialog, QFrame, QSizePolicy
 )
 from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QPixmap
 
+# Logos live alongside this file in gui/assets/. Any of the three
+# missing/unreadable is tolerated -- the footer just shows whatever
+# logos are actually present rather than failing the whole tab.
+ASSETS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
+LOGO_FILES = [
+    ("Lancaster University", "LancasterUniversitylogo.png"),
+    ("UKRI NERC", "ukri-nerc-square-logo.png"),
+    ("ExaGeo", "exageo-logo-main.png"),
+]
+LOGO_MAX_HEIGHT = 56
 
 INSTRUCTIONS = """
 <h2>TGSD Fitting Toolkit</h2>
@@ -60,6 +76,46 @@ class HomeTab(QWidget):
         layout.addWidget(self.status_label)
 
         layout.addStretch()
+
+        # -- footer: funder / partner logos -----------------------------
+        footer_divider = QFrame()
+        footer_divider.setFrameShape(QFrame.Shape.HLine)
+        footer_divider.setFrameShadow(QFrame.Shadow.Sunken)
+        layout.addWidget(footer_divider)
+
+        logo_row = QHBoxLayout()
+        logo_row.setSpacing(30)
+        logo_row.addStretch()
+        any_logo_loaded = False
+        for alt_text, filename in LOGO_FILES:
+            logo_label = self._make_logo_label(filename, alt_text)
+            if logo_label is not None:
+                logo_row.addWidget(logo_label)
+                any_logo_loaded = True
+        logo_row.addStretch()
+
+        if any_logo_loaded:
+            layout.addLayout(logo_row)
+        else:
+            # keep the divider but drop it silently if there's nothing
+            # to show underneath it, rather than leaving an orphan rule
+            footer_divider.setVisible(False)
+
+    def _make_logo_label(self, filename, alt_text):
+        path = os.path.join(ASSETS_DIR, filename)
+        if not os.path.exists(path):
+            return None
+        pixmap = QPixmap(path)
+        if pixmap.isNull():
+            return None
+        pixmap = pixmap.scaledToHeight(
+            LOGO_MAX_HEIGHT, Qt.TransformationMode.SmoothTransformation
+        )
+        label = QLabel()
+        label.setPixmap(pixmap)
+        label.setToolTip(alt_text)
+        label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        return label
 
     def _on_open_clicked(self):
         path, _ = QFileDialog.getOpenFileName(
