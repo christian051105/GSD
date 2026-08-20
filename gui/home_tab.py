@@ -20,7 +20,7 @@ from PyQt6.QtGui import QPixmap
 # Logos live alongside this file in gui/assets/. Any of the three
 # missing/unreadable is tolerated -- the footer just shows whatever
 # logos are actually present rather than failing the whole tab.
-ASSETS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
+ASSETS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logos")
 LOGO_FILES = [
     ("Lancaster University", "LancasterUniversitylogo.png"),
     ("UKRI NERC", "ukri-nerc-square-logo.png"),
