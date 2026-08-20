@@ -75,13 +75,14 @@ class HomeTab(QWidget):
         self.status_label.setStyleSheet("color: grey;")
         layout.addWidget(self.status_label)
 
-        layout.addStretch()
-
         # -- footer: funder / partner logos -----------------------------
+        # Built BEFORE the stretch below, and given stretch=0 when added,
+        # so it always sits pinned near the bottom of the visible tab
+        # instead of being pushed off-window by the stretch consuming
+        # all remaining vertical space first.
         footer_divider = QFrame()
         footer_divider.setFrameShape(QFrame.Shape.HLine)
         footer_divider.setFrameShadow(QFrame.Shadow.Sunken)
-        layout.addWidget(footer_divider)
 
         logo_row = QHBoxLayout()
         logo_row.setSpacing(30)
@@ -89,17 +90,20 @@ class HomeTab(QWidget):
         any_logo_loaded = False
         for alt_text, filename in LOGO_FILES:
             logo_label = self._make_logo_label(filename, alt_text)
-            if logo_label is not None:
-                logo_row.addWidget(logo_label)
+            if logo_label is None:
+                # visible placeholder instead of silently vanishing --
+                # makes a missing/unreadable file obvious rather than
+                # looking identical to "everything's fine"
+                logo_label = QLabel(f"[{alt_text} logo not found]")
+                logo_label.setStyleSheet("color: #b00020; font-size: 10px;")
+            else:
                 any_logo_loaded = True
+            logo_row.addWidget(logo_label)
         logo_row.addStretch()
 
-        if any_logo_loaded:
-            layout.addLayout(logo_row)
-        else:
-            # keep the divider but drop it silently if there's nothing
-            # to show underneath it, rather than leaving an orphan rule
-            footer_divider.setVisible(False)
+        layout.addStretch()
+        layout.addWidget(footer_divider)
+        layout.addLayout(logo_row)
 
     def _make_logo_label(self, filename, alt_text):
         path = os.path.join(ASSETS_DIR, filename)
