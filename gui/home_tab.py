@@ -17,7 +17,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QPixmap
 
-# Logos live alongside this file in gui/assets/. Any of the three
+# Logos live alongside this file in gui/logos/. Any of the three
 # missing/unreadable is tolerated -- the footer just shows whatever
 # logos are actually present rather than failing the whole tab.
 ASSETS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logos")
