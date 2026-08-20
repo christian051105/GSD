@@ -129,14 +129,7 @@ class PlotTab(QWidget):
         self.figure = Figure(figsize=FIGURE_SIZE_IN)
         self.canvas = FigureCanvasQTAgg(self.figure)
         # Let the canvas shrink/grow freely with the window -- do NOT
-        # pin a minimum height. FigureCanvasQTAgg renders at whatever
-        # pixel size Qt actually gives the widget; it does not rescale
-        # already-rendered content to fit, so a fixed figsize/minimum
-        # height bigger than the available space just gets clipped with
-        # no scrollbar to reach the rest. Instead we resize the FIGURE
-        # itself to match the canvas's real size on every resize event
-        # (see resizeEvent override below), so the plot always exactly
-        # fills whatever area Qt has given it.
+        # pin a minimum height. 
         self.canvas.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.canvas.setMinimumSize(200, 200)
         layout.addWidget(self.canvas, stretch=1)
@@ -234,14 +227,7 @@ class PlotTab(QWidget):
     # Panel plan: decide how many pages we need and what each is.
     # ---------------------------------------------------------------
     def _build_panel_specs(self):
-        """
-        Returns an ordered list of page spec dicts. Each spec has at
-        least {"kind": ...}.
-
-        "is_click_target" is set on whichever page the CURRENT phase
-        should listen on: the overlay page during phase "density", or
-        the power-law page during phase "power_law".
-        """
+        
         specs = []
         density_keys = self._density_models()
 
@@ -359,12 +345,8 @@ class PlotTab(QWidget):
             self._render_rr_cumulative(ax, self._results_by_model.get("bi_rr"))
 
         # Reserve space for the overlay page's outside-anchored legend
-        # based on its ACTUAL rendered size, not a static guess -- a
-        # fixed right=0.78 margin was sized for a short legend and
-        # silently overflowed back onto the plot once more density
-        # models (more legend entries) were selected. Every other page
-        # kind uses an inside-axes legend (or none), which needs no
-        # extra margin at all.
+        # based on its ACTUAL rendered size.
+      
         legend = ax.get_legend()
         is_outside_legend = (
             kind == "overlay" and legend is not None
@@ -426,16 +408,7 @@ class PlotTab(QWidget):
         if self.ax_click_target is None or event.xdata is None:
             return
         # the mm-twin-axis (twiny()) sits at the exact same bbox as the
-        # click-target axis, so matplotlib's pixel hit-testing can
-        # resolve event.inaxes to the twin instead of the original --
-        # accept either, since they share the same phi x-coordinates.
-        # A twiny() only shares the x-axis with its parent -- its
-        # y-axis is independent and defaults to (0, 1) since nothing is
-        # ever plotted on it. If event.inaxes is the twin, event.xdata/
-        # event.ydata come back in THAT bogus coordinate system, not the
-        # real panel's data range -- so we always remap the raw pixel
-        # position through the real click-target axes' transform
-        # instead of trusting event.xdata/event.ydata directly.
+        # click-target axis.
         if event.inaxes not in (self.ax_click_target, self.ax_click_target_twin):
             return
 
@@ -663,12 +636,6 @@ class PlotTab(QWidget):
 
         phi_min = -np.log2(mm_max)
         phi_max = -np.log2(mm_min)
-        # round off floating-point noise (e.g. phi_min landing at
-        # -3.0000000000000004 instead of exactly -3.0) before
-        # flooring/ceiling, otherwise a spurious extra tick just
-        # outside the real data range gets added -- which then makes
-        # matplotlib auto-expand this twin axis's xlim to include it,
-        # desyncing it from the primary axis's actual range.
         phi_lo_tick = int(np.floor(round(phi_min, 6)))
         phi_hi_tick = int(np.ceil(round(phi_max, 6)))
         phi_ticks = list(range(phi_lo_tick, phi_hi_tick + 1))
