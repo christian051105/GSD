@@ -9,12 +9,6 @@ Fourth tab: "Data Export". Lets the user export
   2. The currently-fitted plot pages as PNG images -- either just the
      page currently shown on the Plot & Fit tab, or every page in one
      go, each saved as its own file (dataset_label + page title).
-
-This tab is deliberately read-only with respect to fitting: it never
-re-fits or mutates state, it only reads whatever plot_tab/results_store
-already have and writes files out. It's populated/refreshed lazily
-each time the tab becomes visible, so it always reflects the latest
-fits without main_window needing to push updates into it eagerly.
 """
 
 import os
