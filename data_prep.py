@@ -1,14 +1,5 @@
 """
 data_prep.py
-============
-GUI-agnostic replacements for the terminal-prompt parts of the
-original data_loading.py. No input()/print() here -- these functions
-take arguments and return values or raise exceptions, so Settings tab
-widgets can drive them directly.
-
-build_arrays() and detect_phi_bin_width() are unchanged in behaviour
-from data_loading.py (same phi -0.5 shift, same bin-width detection)
-but reproduced here so this module has no terminal dependency.
 """
 
 import numpy as np
@@ -56,10 +47,6 @@ def suggest_bin_width(detected_width):
 def build_arrays(df, mapping, conventions=None):
     """
     Turn a column-mapping dict into clean numpy arrays.
-
-    mapping: {"phi": colname, "size": colname or None, "weight": colname or None}
-    conventions: {"size_unit": "mm" | "\u00b5m" | "already in phi units"}
-
     Returns dict with keys: phi, size_mm, weight_pct, phi_bin_width.
     Raises ValueError on bad/empty weight columns.
     """
