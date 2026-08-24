@@ -5,23 +5,10 @@ Runs curve_fit in a background QThread so clicking doesn't freeze the
 UI while scipy works. Each model gets a `_fit_<model>(arrays, clicks)`
 function that returns the same-shaped result dict:
 
-    {
-        "params": {...},           # passed straight to save_fit_result
-        "rmse": float or None,
-        "phi_smooth": np.ndarray,
-        "y_total": np.ndarray,
-        "y_pop1": np.ndarray,      # optional
-        "y_pop2": np.ndarray,      # optional
-        "total_label": str, "pop1_label": str, "pop2_label": str,
-        "summary_text": str,       # shown in the results box
-    }
-
 All four models are driven from the SAME two clicks (coarse-mode
 peak, fine-mode peak) so several models can be fit at once from one
 pair of clicks -- see FitWorker below, which loops over a list of
-model keys. This is a deliberate simplification versus the original
-pl_clciker.py, which let the user click 1 or 2 *crossover* points
-directly. Here bi-power-law's crossover guess is instead derived from
+model keys. Here bi-power-law's crossover guess is instead derived from
 the two peak clicks (offset outward from each), so its starting guess
 is a bit rougher than a hand-picked crossover -- if a bi-power-law fit
 doesn't converge well, that's the first thing to reconsider.
@@ -192,6 +179,7 @@ def _fit_bi_rr(arrays, clicks):
     # coarse first, fine second. Our clicks come in whatever order the user
     # clicked, so sort by phi (fine phi is numerically larger) to guarantee
     # coarse-then-fine regardless of click order.
+    
     (phi_coarse, y_coarse), (phi_fine, y_fine) = sorted(clicks, key=lambda pt: pt[0])
 
     sigma1_guess = 2.0 ** (-phi_coarse)
@@ -244,13 +232,16 @@ def _fit_bi_rr(arrays, clicks):
     phi_data_sorted = phi_data[order]
     mass_frac_sorted = (wt_pct_norm[order] / wt_pct_norm.sum())
     M_gt_l_data = 1.0 - np.cumsum(mass_frac_sorted)
+    
     # shift so the curve reads "mass coarser than the LEFT edge of
     # each bin", matching the usual grain-size cumulative convention
+    
     M_gt_l_data = np.concatenate(([1.0], M_gt_l_data[:-1]))
     diam_mm_data = 2.0 ** (-phi_data_sorted)
 
     # Fitted curve, from the smooth fitted density via cumulative
     # trapezoidal integration (normalized so total mass = 1).
+    
     y_total_frac = y_total * phi_bin_width
     _trapz = getattr(np, "trapezoid", None) or np.trapz
     total_mass = _trapz(y_total_frac, phi_smooth)
@@ -336,6 +327,7 @@ def _fit_bi_power_law(arrays, clicks):
     # Derive a crossover guess from the two peak clicks (offset outward
     # from each) since we only get peak clicks here, not hand-picked
     # crossovers as in the original pl_clciker.py.
+    
     (phi_coarse, _), (phi_fine, _) = sorted(clicks, key=lambda pt: pt[0])
     offset_phi = 2.0
     lamc_guess = phi_coarse - offset_phi
