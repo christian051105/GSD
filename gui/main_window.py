@@ -10,7 +10,6 @@ manually. Data Export is reached manually, whenever the user wants it
 """
 
 from PyQt6.QtWidgets import QMainWindow, QTabWidget
-
 from gui.home_tab import HomeTab
 from gui.settings_tab import SettingsTab
 from gui.plot_tab import PlotTab
