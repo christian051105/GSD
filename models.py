@@ -14,7 +14,7 @@ from scipy.special import gamma as gamma_func
 
 
 # ---------------------------------------------------------------------
-# Bi-Gaussian (used by BG_clicker)
+# Bi-Gaussian
 # ---------------------------------------------------------------------
 
 def bi_gaussian(phi, mu1, sigma1, mu2, sigma2, p):
@@ -23,22 +23,9 @@ def bi_gaussian(phi, mu1, sigma1, mu2, sigma2, p):
     g2 = np.exp(-0.5 * ((phi - mu2) / sigma2) ** 2) / (sigma2 * np.sqrt(2 * np.pi))
     return p * g1 + (1.0 - p) * g2
 
-def bimodality_B(mu1, mu2, sigma1, sigma2, p):
-    """
-    Bimodality index B (Bonadonna/Costa-style), computed from a fitted
-    bi-Gaussian's parameters. Places the population with the larger
-    peak amplitude first regardless of the fit's mu1/mu2 ordering.
-    """
-    amp1 = p / (sigma1 * np.sqrt(2 * np.pi))
-    amp2 = (1 - p) / (sigma2 * np.sqrt(2 * np.pi))
-    if amp1 >= amp2:
-        P1, P2 = p, 1 - p
-    else:
-        P1, P2 = 1 - p, p
-    return abs(mu2 - mu1) * (P2 / P1)
 
 # ---------------------------------------------------------------------
-# Bi-Weibull (used by BW_clicker)
+# Bi-Weibull 
 # ---------------------------------------------------------------------
 
 def weibull_component(phi, lam, n):
@@ -55,7 +42,7 @@ def bi_weibull(phi, lam1, n1, lam2, n2, q):
 
 
 # ---------------------------------------------------------------------
-# Bi-power-law (used by PL_clicker)
+# Bi-power-law 
 # ---------------------------------------------------------------------
 
 def bi_power_law(phi, lam_f, lam_c, Df, Dc):
@@ -73,7 +60,7 @@ def log_bi_power_law(phi, lam_f, lam_c, Df, Dc):
 
 
 # ---------------------------------------------------------------------
-# Bi-Rosin-Rammler (used by RR_clicker)
+# Bi-Rosin-Rammler 
 # ---------------------------------------------------------------------
 
 def rr_density_phi(phi, sigma, k):
@@ -125,12 +112,6 @@ def add_mm_twin_axis(ax):
     ax_mm.set_xticklabels([f"$10^{{{k}}}$" for k in k_values], fontsize=8)
     ax_mm.set_xlabel("mm", fontsize=9, labelpad=4)
     return ax_mm
-
-
-
-# ---------------------------------------------------------------------
-# Entropy of information
-# ---------------------------------------------------------------------
 
 # ---------------------------------------------------------------------
 # Entropy of information
