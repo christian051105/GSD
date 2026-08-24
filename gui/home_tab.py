@@ -20,6 +20,7 @@ from PyQt6.QtGui import QPixmap
 # Logos live alongside this file in gui/logos/. Any of the three
 # missing/unreadable is tolerated -- the footer just shows whatever
 # logos are actually present rather than failing the whole tab.
+
 ASSETS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logos")
 LOGO_FILES = [
     ("Lancaster University", "LancasterUniversitylogo.png"),
@@ -40,9 +41,6 @@ which columns are phi / size / weight) and choose which model(s) to fit.</li>
 <li>Click each mode's peak on the plot to give the fit a starting guess,
 then review the fitted curve and save the results.</li>
 </ol>
-<p>Your CSV should contain at minimum a &#934; (phi) column and a
-weight/mass column. A physical size column (mm or &micro;m) is only
-needed for the bi-power-law model.</p>
 """
 
 
@@ -80,6 +78,7 @@ class HomeTab(QWidget):
         # so it always sits pinned near the bottom of the visible tab
         # instead of being pushed off-window by the stretch consuming
         # all remaining vertical space first.
+        
         footer_divider = QFrame()
         footer_divider.setFrameShape(QFrame.Shape.HLine)
         footer_divider.setFrameShadow(QFrame.Shadow.Sunken)
