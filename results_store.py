@@ -10,25 +10,6 @@ FILE FORMAT (fit_results.csv):
     side by side (mostly NaN for any given row -- hard to read by eye
     or in a spreadsheet), the file is organized as stacked per-model
     blocks, each its own small clean table:
-
-        ## bi_gaussian
-        dataset,rmse,entropy_bits,entropy_norm,phi_bin_width,mu1,sigma1,mu2,sigma2,p,BI
-        ash_sample_1,0.7256,4.1123,0.8871,1.0,1.052,1.032,4.904,0.942,0.4716,1.947
-
-        ## bi_weibull
-        dataset,rmse,entropy_bits,entropy_norm,phi_bin_width,lambda1_mm,n1,lambda2_mm,n2,q
-        ash_sample_1,0.9950,4.1123,0.8871,1.0,0.2513,0.888,0.01906,1.2965,0.51
-
-    A "## model_key" line introduces each block; the next line is that
-    block's own header (only the columns relevant to that model, no
-    cross-model padding); rows follow until the next blank line or
-    "## " line. A model with no saved results yet simply has no block.
-
-    This is a breaking change from the old single-wide-table format --
-    old fit_results.csv files are NOT compatible and should be deleted
-    or renamed before switching over. load_fit_results()/save_fit_result()
-    keep the same call signature as before, so calling code (e.g.
-    B_calculations.py) does not need to change, only the file on disk.
 """
 
 import os
@@ -186,13 +167,6 @@ def save_fit_result(dataset, model, params, rmse=None,
 def load_fit_results(model=None, path=RESULTS_PATH):
     """
     Load saved fit results.
-
-    model=None : returns one combined DataFrame across all models,
-        with a "model" column identifying which block each row came
-        from (mirrors the old wide-table shape, for any code that
-        expects a single unfiltered table).
-    model="bi_gaussian" (etc) : returns just that model's own
-        DataFrame, with only its own columns -- no cross-model NaNs.
     """
     blocks = _read_all_blocks(path)
 
