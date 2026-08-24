@@ -1,8 +1,7 @@
 """
 gui/settings_tab.py
 ====================
-Everything that used to be terminal prompts in data_loading.py, as
-widgets: header-row preview/selection, column mapping (phi/size/
+header-row preview/selection, column mapping (phi/size/
 weight), size-unit convention, phi bin width confirmation, which
 model to fit, and where to save results. One "Confirm" button builds
 the clean arrays and signals main_window to open the Plot tab.
