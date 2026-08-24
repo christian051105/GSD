@@ -4,6 +4,7 @@ main.py
 Entry point. Run with:  python3 main.py
 """
 
+
 import sys
 from PyQt6.QtWidgets import QApplication
 
