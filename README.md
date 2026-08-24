@@ -56,8 +56,7 @@ This opens the main window with four tabs: **Home**, **Settings**,
 
 ### 1. Home
 
-Click **Open CSV File...** and select your grain-size data. Your CSV
-should contain at minimum a Φ (phi) column and a weight/mass column.
+Click **Open CSV File...** and select your grain-size data.
 A physical size column (mm or µm) is only needed if you want to fit
 the bi-power-law model.
 
@@ -110,7 +109,7 @@ CSV.
 ## Project structure
 
 ```
-tgsd-trial-2/
+GSD/
 ├── main.py              # entry point
 ├── data_prep.py          # CSV loading / column mapping / array building
 ├── models.py             # model functions (bi-Gaussian, bi-Weibull, bi-RR, bi-power-law)
@@ -122,7 +121,7 @@ tgsd-trial-2/
 │   ├── plot_tab.py        # paginated matplotlib plotting + click-to-fit
 │   ├── fit_worker.py       # background QThread that runs the curve fits
 │   ├── export_tab.py       # CSV + PNG export
-│   └── assets/             # partner/funder logos shown on Home
+│   └── logos/             # partner/funder logos shown on Home
 └── fit_results.csv        # created on first save (not committed)
 ```
 
